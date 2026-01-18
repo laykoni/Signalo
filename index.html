@@ -226,7 +226,7 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:8000/chat';
+        const API_URL = '/chat';
         
         let conversationHistory = [];
         let locationContext = null;
@@ -473,7 +473,7 @@
         // Check if backend is running
         async function checkBackend() {
             try {
-                const response = await fetch('http://localhost:8000/');
+                const response = await fetch('/');
                 const data = await response.json();
                 console.log('✅ Backend is running:', data);
             } catch (error) {
