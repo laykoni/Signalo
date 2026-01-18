@@ -3,10 +3,6 @@
     {
       "src": "main.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -23,7 +19,11 @@
       "dest": "main.py"
     },
     {
-      "src": "/(.*)",
+      "src": "/api-health",
+      "dest": "main.py"
+    },
+    {
+      "src": "/(.*\\.(html|css|js))?",
       "dest": "index.html"
     }
   ]
