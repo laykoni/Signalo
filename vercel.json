@@ -1,7 +1,7 @@
 {
   "builds": [
     {
-      "src": "improved_backend.py",
+      "src": "main.py",
       "use": "@vercel/python"
     },
     {
@@ -12,15 +12,15 @@
   "routes": [
     {
       "src": "/chat",
-      "dest": "improved_backend.py"
+      "dest": "main.py"
     },
     {
       "src": "/organizations",
-      "dest": "improved_backend.py"
+      "dest": "main.py"
     },
     {
       "src": "/filter-organizations",
-      "dest": "improved_backend.py"
+      "dest": "main.py"
     },
     {
       "src": "/(.*)",
