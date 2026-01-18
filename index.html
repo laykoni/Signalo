@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Граждански Сигнали</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 600px;
+            height: 80vh;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            background: #f0f0f0;
+            color: #333;
+            align-self: flex-start;
+        }
+
+        .message.system {
+            background: #d4edda;
+            color: #155724;
+            align-self: center;
+            font-size: 14px;
+            padding: 10px;
+            max-width: 90%;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            align-self: center;
+            font-size: 13px;
+            padding: 8px;
+            max-width: 90%;
+        }
+
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area.disabled {
+            background: #f5f5f5;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input:disabled {
+            background: #f0f0f0;
+            cursor: not-allowed;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .signal-data {
+            background: #fff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .signal-field {
+            margin-bottom: 10px;
+        }
+
+        .signal-field strong {
+            color: #667eea;
+        }
+
+        .stats {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        /* New styles for conversation ended state */
+        .new-conversation-btn {
+            padding: 12px 24px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+        }
+
+        .new-conversation-btn:hover {
+            background: #218838;
+        }
+
+        .ended-message {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🏛️ Граждански Сигнали</h2>
+            <p style="font-size: 14px; margin-top: 5px;">Опишете вашия проблем</p>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="loading" id="loading">
+            <span>Claude пише...</span>
+        </div>
+
+        <div class="input-area" id="inputArea">
+            <input 
+                type="text" 
+                id="userInput" 
+                placeholder="Напишете вашия сигнал..."
+                autocomplete="off"
+            />
+            <button id="sendBtn">Изпрати</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000/chat';
+        
+        let conversationHistory = [];
+        let locationContext = null;
+        let conversationEnded = false;  // NEW: Track if conversation has ended
+        
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loading = document.getElementById('loading');
+        const inputArea = document.getElementById('inputArea');
+
+        // NEW: End conversation and show new conversation button
+        function endConversation() {
+            conversationEnded = true;
+            
+            // Replace input area with new conversation button
+            inputArea.innerHTML = `
+                <div style="width: 100%; text-align: center;">
+                    <p class="ended-message">✅ Сигналът беше изпратен успешно!</p>
+                    <button class="new-conversation-btn" onclick="startNewConversation()">
+                        🔄 Нов сигнал
+                    </button>
+                </div>
+            `;
+        }
+
+        // NEW: Start a new conversation
+        function startNewConversation() {
+            // Reset state
+            conversationHistory = [];
+            locationContext = null;
+            conversationEnded = false;
+            
+            // Clear messages
+            messagesDiv.innerHTML = '';
+            
+            // Restore input area
+            inputArea.innerHTML = `
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="Напишете вашия сигнал..."
+                    autocomplete="off"
+                />
+                <button id="sendBtn">Изпрати</button>
+            `;
+            
+            // Re-attach event listeners
+            const newUserInput = document.getElementById('userInput');
+            const newSendBtn = document.getElementById('sendBtn');
+            
+            newSendBtn.addEventListener('click', sendMessage);
+            newUserInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Show greeting
+            setTimeout(() => {
+                addMessage(
+                    'Здравейте! Опишете вашия проблем или сигнал, и аз ще ви помогна да го изпратите до правилната институция.',
+                    'assistant'
+                );
+            }, 300);
+        }
+
+        // Add message to UI
+        function addMessage(content, role, metadata = {}) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            if (role === 'signal') {
+                messageDiv.innerHTML = formatSignalData(content);
+            } else if (typeof content === 'object') {
+                messageDiv.innerHTML = `<pre>${JSON.stringify(content, null, 2)}</pre>`;
+            } else {
+                messageDiv.textContent = content;
+            }
+
+            if (metadata.filtered_org_count) {
+                const statsDiv = document.createElement('div');
+                statsDiv.className = 'stats';
+                statsDiv.textContent = `📊 ${metadata.filtered_org_count} релевантни организации`;
+                messageDiv.appendChild(statsDiv);
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Format signal data nicely
+        function formatSignalData(signal) {
+            return `
+                <div class="signal-data">
+                    <div class="signal-field">
+                        <strong>📋 Заглавие:</strong><br>
+                        ${signal.title}
+                    </div>
+                    <div class="signal-field">
+                        <strong>📝 Описание:</strong><br>
+                        ${signal.description}
+                    </div>
+                    <div class="signal-field">
+                        <strong>🏢 Институция:</strong><br>
+                        ${signal.agency} (ID: ${signal.agency_id})
+                    </div>
+                    <div class="signal-field">
+                        <strong>📍 Местоположение:</strong><br>
+                        ${formatLocation(signal.location)}
+                    </div>
+                    ${signal.urgency ? `
+                    <div class="signal-field">
+                        <strong>⚡ Спешност:</strong> ${signal.urgency}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Format location object
+        function formatLocation(loc) {
+            const parts = [];
+            if (loc.street) parts.push(loc.street);
+            if (loc.grad) parts.push(loc.grad);
+            if (loc.obshtina && loc.obshtina !== loc.grad) parts.push('Община ' + loc.obshtina);
+            if (loc.oblast) parts.push('Област ' + loc.oblast);
+            if (loc.rayon) parts.push('Район ' + loc.rayon);
+            return parts.join(', ') || 'Не е посочено';
+        }
+
+        // Send message
+        async function sendMessage() {
+            // NEW: Don't send if conversation has ended
+            if (conversationEnded) {
+                return;
+            }
+
+            const currentInput = document.getElementById('userInput');
+            const currentSendBtn = document.getElementById('sendBtn');
+            
+            const message = currentInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, 'user');
+            currentInput.value = '';
+
+            conversationHistory.push({
+                role: 'user',
+                content: message
+            });
+
+            loading.classList.add('active');
+            currentSendBtn.disabled = true;
+
+            try {
+                const payload = {
+                    messages: conversationHistory
+                };
+
+                if (locationContext) {
+                    payload.location_context = locationContext;
+                }
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                loading.classList.remove('active');
+                currentSendBtn.disabled = false;
+
+                // NEW: Check if conversation already ended (duplicate detection from backend)
+                if (data.conversation_ended && data.signal_sent && !data.signal_ready) {
+                    addMessage(data.message, 'system');
+                    endConversation();
+                    return;
+                }
+
+                if (data.signal_ready) {
+                    addMessage('✅ Сигналът е готов за изпращане!', 'system');
+                    
+                    addMessage(data.signal_data, 'signal', {
+                        filtered_org_count: data.filtered_org_count
+                    });
+                    
+                    addMessage(
+                        `📨 Сигналът ще бъде изпратен до "${data.signal_data.agency}"`,
+                        'system'
+                    );
+
+                    if (data.signal_data.validation_warning) {
+                        addMessage(
+                            `⚠️ Внимание: ${data.signal_data.validation_warning}`,
+                            'info'
+                        );
+                    }
+
+                    // NEW: End the conversation after signal is sent
+                    endConversation();
+
+                } else {
+                    addMessage(data.message, 'assistant', {
+                        filtered_org_count: data.filtered_org_count
+                    });
+                    
+                    conversationHistory.push({
+                        role: 'assistant',
+                        content: data.message
+                    });
+
+                    if (data.needs_location) {
+                        addMessage(
+                            'ℹ️ Моля, споделете местоположението на проблема за по-точно насочване',
+                            'info'
+                        );
+                    } else if (data.filtered_org_count) {
+                        console.log(`Filtering active: ${data.filtered_org_count} orgs`);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                loading.classList.remove('active');
+                const currentSendBtn = document.getElementById('sendBtn');
+                if (currentSendBtn) currentSendBtn.disabled = false;
+                addMessage('❌ Грешка при свързване със сървъра. Моля, уверете се че backend-ът работи на http://localhost:8000', 'system');
+            }
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Check if backend is running
+        async function checkBackend() {
+            try {
+                const response = await fetch('http://localhost:8000/');
+                const data = await response.json();
+                console.log('✅ Backend is running:', data);
+            } catch (error) {
+                console.error('❌ Backend not running');
+                addMessage(
+                    '⚠️ Не може да се свърже със сървъра. Уверете се, че backend-ът работи на http://localhost:8000',
+                    'system'
+                );
+            }
+        }
+
+        // Initial setup
+        window.addEventListener('load', () => {
+            checkBackend();
+
+            setTimeout(() => {
+                addMessage(
+                    'Здравейте! Опишете вашия проблем или сигнал, и аз ще ви помогна да го изпратите до правилната институция.',
+                    'assistant'
+                );
+            }, 500);
+        });
+    </script>
+</body>
+</html>
