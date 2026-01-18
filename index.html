@@ -470,20 +470,19 @@
             }
         });
 
-        // Check if backend is running
         async function checkBackend() {
             try {
-                const response = await fetch('/');
+                const response = await fetch('/organizations');
                 const data = await response.json();
-                console.log('✅ Backend is running:', data);
+                console.log('✅ Backend is running, loaded', data.count, 'organizations');
             } catch (error) {
-                console.error('❌ Backend not running');
+                console.error('❌ Backend not running:', error);
                 addMessage(
-                    '⚠️ Не може да се свърже със сървъра. Уверете се, че backend-ът работи на http://localhost:8000',
+                    '⚠️ Не може да се свърже със сървъра.',
                     'system'
                 );
             }
-        }
+        }  
 
         // Initial setup
         window.addEventListener('load', () => {
