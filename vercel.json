@@ -3,27 +3,23 @@
     {
       "src": "main.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "organizations.csv",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/chat",
+      "src": "/(chat|organizations|filter-organizations)",
       "dest": "main.py"
     },
     {
-      "src": "/organizations",
-      "dest": "main.py"
-    },
-    {
-      "src": "/filter-organizations",
-      "dest": "main.py"
-    },
-    {
-      "src": "/api-health",
-      "dest": "main.py"
-    },
-    {
-      "src": "/(.*\\.(html|css|js))?",
+      "src": "/",
       "dest": "index.html"
     }
   ]
