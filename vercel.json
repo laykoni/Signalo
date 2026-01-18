@@ -1,0 +1,30 @@
+{
+  "builds": [
+    {
+      "src": "improved_backend.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/chat",
+      "dest": "improved_backend.py"
+    },
+    {
+      "src": "/organizations",
+      "dest": "improved_backend.py"
+    },
+    {
+      "src": "/filter-organizations",
+      "dest": "improved_backend.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "index.html"
+    }
+  ]
+}
