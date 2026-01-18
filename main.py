@@ -473,6 +473,10 @@ def get_organizations():
         "organizations": ORGANIZATIONS,
         "count": len(ORGANIZATIONS)
     }
+    
+@app.get("/api-health")
+def api_health():
+    return {"status": "ok", "organizations_loaded": len(ORGANIZATIONS)}
 
 if __name__ == "__main__":
     import uvicorn
