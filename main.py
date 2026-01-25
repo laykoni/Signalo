@@ -1,6 +1,6 @@
 """
-FIXED: Proper hierarchical filtering - excludes organizations that are too specific
-Key principle: If user doesn't specify a level, EXCLUDE organizations at that level and below
+Citizen Signals API with Media Upload Support
+Media is saved ONLY when signal is finalized (JSON detected)
 """
 
 from fastapi import FastAPI
@@ -10,6 +10,10 @@ from anthropic import Anthropic
 import os
 import json
 import csv
+import uuid
+import base64
+from pathlib import Path
+from datetime import datetime
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 
@@ -32,6 +36,28 @@ if not ANTHROPIC_API_KEY:
 
 print(f"✓ API Key loaded: {ANTHROPIC_API_KEY[:20]}...")
 claude = Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# Load system prompt from file
+def load_prompt(filepath='prompt.txt'):
+    """Load the system prompt from an external file"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # Remove the triple quotes if present (from Python docstring format)
+            if content.startswith('"""'):
+                content = content[3:]
+            if content.endswith('"""'):
+                content = content[:-3]
+            print(f"✓ Loaded prompt from {filepath} ({len(content)} chars)")
+            return content.strip()
+    except FileNotFoundError:
+        print(f"⚠ Prompt file not found: {filepath}, using default")
+        return None
+
+# Create uploads directory for storing media files
+UPLOADS_DIR = Path("uploads")
+UPLOADS_DIR.mkdir(exist_ok=True)
+print(f"✓ Uploads directory: {UPLOADS_DIR.absolute()}")
 
 def load_organizations(csv_path='organizations.csv'):
     """Load organizations from CSV file"""
@@ -67,6 +93,31 @@ def normalize_location(location: str) -> str:
         return ""
     return location.strip().lower()
 
+def build_location_db_from_orgs():
+    """Build location database dynamically from loaded organizations"""
+    location_db = {}
+    rayon_db = {}
+    
+    for org in ORGANIZATIONS:
+        if org['grad']:
+            city_key = normalize_location(org['grad'])
+            if city_key not in location_db:
+                location_db[city_key] = {
+                    'oblast': org['oblast'],
+                    'obshtina': org['obshtina'],
+                    'grad': org['grad']
+                }
+        
+        if org['rayon']:
+            rayon_key = normalize_location(org['rayon'])
+            if rayon_key not in rayon_db:
+                rayon_db[rayon_key] = org['rayon']
+    
+    print(f"✓ Built dynamic location database: {len(location_db)} cities, {len(rayon_db)} rayons")
+    return location_db, rayon_db
+
+LOCATION_DB, RAYON_DB = build_location_db_from_orgs()
+
 def location_matches(user_location: str, org_location: Optional[str]) -> bool:
     """Check if organization's location field matches user's location"""
     if org_location is None:
@@ -84,101 +135,54 @@ def filter_organizations_by_location(oblast: Optional[str] = None,
                                      obshtina: Optional[str] = None,
                                      grad: Optional[str] = None,
                                      rayon: Optional[str] = None) -> List[Dict]:
-    """
-    Filter organizations based on hierarchical location logic
-    
-    KEY PRINCIPLE: If user doesn't specify a level, EXCLUDE organizations at that level
-    
-    Examples:
-    - User says "Oblast Plovdiv" → Include National + Oblast-level, EXCLUDE Obshtina/Grad/Rayon
-    - User says "Plovdiv city" → Include National + Oblast + Obshtina + Grad, EXCLUDE Rayon
-    - User says "Plovdiv, Rayon Zapaden" → Include all levels including matching Rayon
-    """
+    """Filter organizations based on hierarchical location logic"""
     filtered = []
     
     for org in ORGANIZATIONS:
-        # Rule 1: If org has oblast, it must match (if user specified oblast)
         if org['oblast'] is not None and oblast is not None:
             if not location_matches(oblast, org['oblast']):
-                continue  # Oblast doesn't match, skip
+                continue
         
-        # Rule 2: If user didn't specify obshtina, EXCLUDE orgs that have obshtina
-        # (they're too specific - they cover only part of the oblast)
         if obshtina is None:
             if org['obshtina'] is not None:
-                continue  # Too specific, skip
+                continue
         else:
-            # User specified obshtina, so check if it matches
             if org['obshtina'] is not None:
                 if not location_matches(obshtina, org['obshtina']):
-                    continue  # Obshtina doesn't match, skip
+                    continue
         
-        # Rule 3: If user didn't specify grad, EXCLUDE orgs that have grad
         if grad is None:
             if org['grad'] is not None:
-                continue  # Too specific, skip
+                continue
         else:
-            # User specified grad, so check if it matches
             if org['grad'] is not None:
                 if not location_matches(grad, org['grad']):
-                    continue  # Grad doesn't match, skip
+                    continue
         
-        # Rule 4: If user didn't specify rayon, EXCLUDE orgs that have rayon
         if rayon is None:
             if org['rayon'] is not None:
-                continue  # Too specific, skip
+                continue
         else:
-            # User specified rayon, so check if it matches
             if org['rayon'] is not None:
                 if not location_matches(rayon, org['rayon']):
-                    continue  # Rayon doesn't match, skip
+                    continue
         
-        # If we got here, org is valid for this location
         filtered.append(org)
     
     print(f"✓ Filtered to {len(filtered)} organizations for: {oblast}/{obshtina}/{grad}/{rayon}")
     return filtered
 
 def extract_location_from_messages(messages: List[Dict]) -> Optional[Dict[str, str]]:
-    """Extract location from conversation using pattern matching"""
+    """Extract location from conversation using dynamic pattern matching"""
     
-    location_db = {
-        'пловдив': {'oblast': 'Пловдив', 'obshtina': 'Пловдив', 'grad': 'Пловдив'},
-        'софия': {'oblast': 'София-столица', 'obshtina': 'София', 'grad': 'София'},
-        'варна': {'oblast': 'Варна', 'obshtina': 'Варна', 'grad': 'Варна'},
-        'бургас': {'oblast': 'Бургас', 'obshtina': 'Бургас', 'grad': 'Бургас'},
-        'русе': {'oblast': 'Русе', 'obshtina': 'Русе', 'grad': 'Русе'},
-        'стара загора': {'oblast': 'Стара Загора', 'obshtina': 'Стара Загора', 'grad': 'Стара Загора'},
-        'плевен': {'oblast': 'Плевен', 'obshtina': 'Плевен', 'grad': 'Плевен'},
-        'сливен': {'oblast': 'Сливен', 'obshtina': 'Сливен', 'grad': 'Сливен'},
-        'добрич': {'oblast': 'Добрич', 'obshtina': 'Добрич', 'grad': 'Добрич'},
-    }
-    
-    rayon_patterns = {
-        'западен': 'Район Западен',
-        'източен': 'Район Източен', 
-        'северен': 'Район Северен',
-        'централен': 'Район Централен',
-        'тракия': 'Район Тракия',
-        'южен': 'Район Южен',
-        'лозенец': 'Лозенец',
-        'витоша': 'Витоша',
-        'младост': 'Младост',
-        'аспарухово': 'Район Аспарухово',
-        'одесос': 'Район Одесос',
-    }
-    
-    # Check last few messages
     for msg in reversed(messages[-6:]):
         content = msg['content'].lower()
         
-        # Try to find city
-        for city_key, loc_data in location_db.items():
+        for city_key, loc_data in LOCATION_DB.items():
             if city_key in content:
                 result = loc_data.copy()
                 
-                # Try to find rayon
-                for rayon_key, rayon_value in rayon_patterns.items():
+                for rayon_key, rayon_value in RAYON_DB.items():
                     if rayon_key in content:
                         result['rayon'] = rayon_value
                         print(f"✓ Extracted location: {result}")
@@ -196,108 +200,28 @@ def create_org_list_text(organizations: List[Dict]) -> str:
         org_lines.append(f"{org['id']}. {org['name']}")
     return "\n".join(org_lines)
 
-BASE_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT = """Ти си асистент за подаване на граждански сигнали към българските държавни институции.
+# Load the base system prompt from file (or use fallback)
+BASE_SYSTEM_PROMPT = load_prompt('prompt.txt')
 
-ТВОЯТА ЦЕЛ: Да събереш ДОСТАТЪЧНО информация, за да може институцията РЕАЛНО да реагира на сигнала.
+if not BASE_SYSTEM_PROMPT:
+    BASE_SYSTEM_PROMPT = """Ти си асистент за подаване на граждански сигнали към българските държавни институции.
+    
+ТВОЯТА ЦЕЛ: Да събереш информация за сигнала и да го изпратиш до правилната институция.
 
-ПРОЦЕС:
-1. КЪДЕ - Първо установи точното местоположение (град, район, адрес)
-2. КАКВО - Разбери какъв е проблемът в детайли
-3. КОГА - Кога се е случило (дата, час ако е важно)
-4. ДЕТАЙЛИ ПО ТИП СИГНАЛ - Задай специфични въпроси според вида проблем (виж примерите долу)
-5. КОНТАКТ - Само ако е нужно за реакция на сигнала
-6. ПОТВЪРЖДЕНИЕ - Обобщи и питай "Да изпратя ли сигнала?"
-
-⚠️ КРИТИЧНО ВАЖНО:
-- НЕ бързай да генерираш сигнал! По-добре е да зададеш 1-2 въпроса повече, отколкото да изпратиш непълен сигнал.
-- Преди да предложиш изпращане, ПРОВЕРИ дали имаш достатъчно информация институцията да действа.
-- Ако информацията е недостатъчна, кажи на потребителя какво липсва и защо е важно.
-- Ако потребителят спомене, че вече е изпращан сигнал до институции, но няма реакция, избери по визша организация, за да ескалираме сигнлата (НО само ако сигналът е сериозен, за дребни проблеми не ескалирай)
-
-ПРИМЕРИ ЗА НУЖНА ИНФОРМАЦИЯ ПО ТИП СИГНАЛ:
-
-📋 ФИСКАЛНИ НАРУШЕНИЯ (липса на касова бележка, неиздаден фискален бон):
-- Име на търговския обект (ЗАДЪЛЖИТЕЛНО - без него НАП не може да провери!)
-- Точен адрес
-- Дата и приблизителен час
-- Какво е закупено и на каква стойност (поне приблизително)
-- Поискахте ли касова бележка и какво ви отговориха?
-
-🚧 ИНФРАСТРУКТУРНИ ПРОБЛЕМИ (дупки, улично осветление, тротоари):
-- Точен адрес или ориентир (между кои улици, до кой номер)
-- Описание на проблема (размер на дупката, колко лампи не светят)
-- От колко време съществува проблемът?
-- Има ли опасност за хора/коли?
-
-🗑️ ЧИСТОТА И ОТПАДЪЦИ (боклуци, нерегламентирани сметища):
-- Точна локация
-- Какъв вид отпадъци (битови, строителни, опасни)
-- Приблизително количество
-- От колко време е там?
-
-🌳 ЕКОЛОГИЧНИ ПРОБЛЕМИ (замърсяване, незаконна сеч):
-- Точна локация (GPS координати ако има)
-- Вид замърсяване/нарушение
-- Мащаб на проблема
-- Има ли извършител (фирма, лице)?
-
-🏗️ НЕЗАКОННО СТРОИТЕЛСТВО:
-- Точен адрес
-- Какво се строи
-- От кога продължава
-- Има ли видими разрешителни/табели?
-
-🐕 БЕЗСТОПАНСТВЕНИ ЖИВОТНИ:
-- Локация където се намират
-- Брой животни
-- Агресивни ли са?
-- Има ли наранени животни?
-
-🔊 ШУМ И НАРУШЕНИЯ НА ОБЩЕСТВЕНИЯ РЕД:
-- Точен адрес на източника
-- Вид шум (музика, строителство, производство)
-- В какви часове се случва
-- Колко често (еднократно, всяка вечер)?
-
-ВАЖНО ЗА МЕСТОПОЛОЖЕНИЕТО:
-- За големи градове (София, Пловдив, Варна) - ВИНАГИ питай за район
-- Извлечи: област, община, град/село, район (ако е приложимо), улица/адрес
-
-КОНТАКТНА ИНФОРМАЦИЯ:
-- Питай за име само ако потребителят иска да бъде включено
-- Питай за телефон/имейл САМО ако институцията ще има нужда да се свърже (напр. за оглед, за допълнителни въпроси)
-- За анонимни сигнали - не настоявай за контакт
-
-JSON ФОРМАТ (връщай САМО когато имаш ДОСТАТЪЧНО информация И потребителят потвърди):
-```json
-{
-  "title": "Кратко заглавие на сигнала",
-  "description": "ПОДРОБНО описание с ВСИЧКИ събрани детайли - това е най-важното поле!",
-  "agency_id": 123,
-  "agency": "Име на институцията",
-  "location": {
-    "oblast": "Област",
-    "obshtina": "Община", 
-    "grad": "Град/село",
-    "rayon": "Район (ако е приложимо)",
-    "street": "Улица/адрес"
-  },
-  "category": "",
-  "urgency": "спешно/нормално/неспешно"
-}
-```
-
-ПРАВИЛА:
-- Задавай по 1-2 въпроса наведнъж, не претоварвай потребителя
-- Ако потребителят не знае нещо, продължи напред
-- Описанието в JSON трябва да е ПЪЛНО изречение с всички детайли, не телеграфен стил"""
+Питай за: КЪДЕ (местоположение), КАКВО (проблем), КОГА (време).
+След като имаш достатъчно информация, попитай "Да изпратя ли сигнала?" и генерирай JSON."""
+    print("⚠ Using fallback prompt")
 
 
-def build_system_prompt_with_orgs(organizations: List[Dict]) -> str:
+def build_system_prompt_with_orgs(organizations: List[Dict], media_count: int = 0) -> str:
     """Build complete system prompt with filtered organization list"""
     org_list = create_org_list_text(organizations)
     
-    return f"""{BASE_SYSTEM_PROMPT}
+    media_note = ""
+    if media_count > 0:
+        media_note = f"\n\n📎 ЗАБЕЛЕЖКА: Потребителят е прикачил {media_count} файл{'а' if media_count > 1 else ''} (снимки/видеа) към този сигнал. Тези файлове ще бъдат изпратени заедно със сигнала."
+    
+    return f"""{BASE_SYSTEM_PROMPT}{media_note}
 
 СПИСЪК НА ИНСТИТУЦИИ ЗА ТОВА МЕСТОПОЛОЖЕНИЕ (ИЗБИРАЙ САМО ОТ ТЕЗИ):
 {org_list}
@@ -335,6 +259,68 @@ def validate_agency_id(agency_id, filtered_orgs):
         return False
     return any(org['id'] == agency_id for org in filtered_orgs)
 
+def save_media_files(media_list: List[Dict], signal_id: str) -> List[Dict]:
+    """Save uploaded media files and return metadata"""
+    saved_files = []
+    
+    signal_dir = UPLOADS_DIR / signal_id
+    signal_dir.mkdir(exist_ok=True)
+    
+    for i, media in enumerate(media_list):
+        try:
+            # Extract base64 data
+            data = media.get('data', '')
+            if ',' in data:
+                # Remove data URL prefix like "data:image/jpeg;base64,"
+                data = data.split(',')[1]
+            
+            # Decode
+            file_bytes = base64.b64decode(data)
+            
+            # Generate filename with proper extension
+            original_filename = media.get('filename', 'file')
+            ext = original_filename.split('.')[-1] if '.' in original_filename else 'bin'
+            
+            # Ensure proper extension based on type
+            if media['type'] == 'image' and ext.lower() not in ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']:
+                ext = 'jpg'
+            elif media['type'] == 'video' and ext.lower() not in ['mp4', 'mov', 'avi', 'webm', 'mkv']:
+                ext = 'mp4'
+            
+            filename = f"{media['type']}_{i+1}_{uuid.uuid4().hex[:8]}.{ext}"
+            filepath = signal_dir / filename
+            
+            # Save file
+            with open(filepath, 'wb') as f:
+                f.write(file_bytes)
+            
+            saved_files.append({
+                'filename': filename,
+                'original_name': original_filename,
+                'type': media['type'],
+                'mime_type': media.get('mime_type', ''),
+                'size': len(file_bytes),
+                'path': str(filepath.absolute())
+            })
+            
+            print(f"✓ Saved media file: {filepath} ({len(file_bytes)} bytes)")
+            
+        except Exception as e:
+            print(f"❌ Error saving media file: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    return saved_files
+
+
+# Pydantic models
+class MediaItem(BaseModel):
+    type: str  # 'image' or 'video'
+    filename: str
+    mime_type: str
+    data: str  # base64 encoded
+    size: int
+
 class Message(BaseModel):
     role: str
     content: str
@@ -342,27 +328,23 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[Message]
     location_context: Optional[Dict[str, str]] = None
+    media: Optional[List[MediaItem]] = None
+
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    """Handle chat conversation with location-based organization filtering"""
+    """Handle chat conversation with location-based organization filtering and media support"""
     
     messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
     
-
-    # Check if signal was already sent - look for completed signal JSON in assistant messages
-    for msg in messages:
-        if msg['role'] == 'assistant':
-            content = msg['content']
-            # Check if this message contains a completed signal JSON
-            if all(marker in content for marker in ['"agency_id"', '"title"', '"description"', '"agency"']):
-                print("⚠ Signal already sent in this conversation - blocking duplicate")
-                return {
-                    "signal_ready": False,
-                    "signal_sent": True,
-                    "message": "Сигналът вече беше изпратен. Ако искате да подадете нов сигнал, моля започнете нов разговор.",
-                    "conversation_ended": True
-                }
+    # Check if media was uploaded
+    has_media = request.media and len(request.media) > 0
+    media_count = len(request.media) if has_media else 0
+    
+    if has_media:
+        print(f"✓ Received {media_count} media files in request")
+        for i, m in enumerate(request.media):
+            print(f"  - File {i+1}: {m.filename} ({m.type}, {m.size} bytes)")
     
     # Try to extract location
     location_context = request.location_context or extract_location_from_messages(messages)
@@ -375,11 +357,13 @@ async def chat(request: ChatRequest):
             grad=location_context.get('grad'),
             rayon=location_context.get('rayon')
         )
-        system_prompt = build_system_prompt_with_orgs(filtered_orgs)
+        system_prompt = build_system_prompt_with_orgs(filtered_orgs, media_count)
         print(f"✓ Using filtered list with {len(filtered_orgs)} organizations")
     else:
         filtered_orgs = ORGANIZATIONS
         system_prompt = BASE_SYSTEM_PROMPT + "\n\n(Списъкът на институциите ще бъде предоставен след като разбера местоположението)"
+        if has_media:
+            system_prompt += f"\n\n📎 ЗАБЕЛЕЖКА: Потребителят е прикачил {media_count} файла (снимки/видеа)."
         print("⚠ No location context - using all organizations")
     
     try:
@@ -399,7 +383,25 @@ async def chat(request: ChatRequest):
         assistant_message = response.content[0].text
         signal_data = extract_json_from_text(assistant_message)
         
+        # Check if signal is ready (JSON detected with required fields)
         if signal_data and all(k in signal_data for k in ['title', 'description', 'agency']):
+            # Generate signal ID
+            signal_id = f"signal_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+            
+            # *** THIS IS WHERE WE SAVE THE MEDIA - ONLY WHEN SIGNAL IS FINALIZED ***
+            saved_media = []
+            if has_media:
+                print(f"📁 Signal ready! Saving {media_count} media files...")
+                saved_media = save_media_files(
+                    [m.model_dump() for m in request.media],
+                    signal_id
+                )
+                signal_data['attached_media'] = saved_media
+                print(f"✓ Saved {len(saved_media)} media files for signal {signal_id}")
+            else:
+                print("📁 Signal ready! No media files to save.")
+            
+            # Validate agency
             if 'location' in signal_data:
                 loc = signal_data['location']
                 final_filtered_orgs = filter_organizations_by_location(
@@ -418,25 +420,34 @@ async def chat(request: ChatRequest):
                 else:
                     signal_data['validation_warning'] = "Missing agency_id"
             
+            # Add signal ID
+            signal_data['signal_id'] = signal_id
+            
             return {
                 "signal_ready": True,
                 "signal_sent": True,
                 "signal_data": signal_data,
-                "message": "✅ Сигналът беше изпратен успешно! Благодарим ви. Ако искате да подадете нов сигнал, моля започнете нов разговор.",
+                "message": "Сигналът беше изпратен успешно! Благодарим ви.",
                 "filtered_org_count": len(filtered_orgs),
+                "attached_media_count": len(saved_media),
                 "conversation_ended": True
             }
         else:
+            # Signal not ready yet - continue conversation
+            # Media is NOT saved yet, just tracked
             return {
                 "signal_ready": False,
                 "signal_sent": False,
                 "message": assistant_message,
                 "filtered_org_count": len(filtered_orgs) if location_context else None,
-                "location_context": location_context
+                "location_context": location_context,
+                "pending_media_count": media_count  # Let frontend know we're tracking media
             }
     
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "signal_ready": False,
             "signal_sent": False,
@@ -461,9 +472,12 @@ async def filter_orgs(location: Dict[str, Optional[str]]):
 @app.get("/")
 def root():
     return {
-        "message": "Citizen Signals Chat API with Proper Hierarchical Filtering", 
+        "message": "Citizen Signals Chat API with Media Upload Support", 
         "status": "running",
-        "organizations_loaded": len(ORGANIZATIONS)
+        "organizations_loaded": len(ORGANIZATIONS),
+        "cities_supported": len(LOCATION_DB),
+        "rayons_supported": len(RAYON_DB),
+        "uploads_dir": str(UPLOADS_DIR.absolute())
     }
 
 @app.get("/organizations")
@@ -473,32 +487,49 @@ def get_organizations():
         "organizations": ORGANIZATIONS,
         "count": len(ORGANIZATIONS)
     }
+
+@app.get("/locations")
+def get_locations():
+    """Get list of all supported locations"""
+    return {
+        "cities": list(LOCATION_DB.keys()),
+        "rayons": list(RAYON_DB.keys()),
+        "city_count": len(LOCATION_DB),
+        "rayon_count": len(RAYON_DB)
+    }
+
+@app.get("/signals/{signal_id}/media")
+def get_signal_media(signal_id: str):
+    """Get list of media files for a signal"""
+    signal_dir = UPLOADS_DIR / signal_id
+    if not signal_dir.exists():
+        return {"error": "Signal not found", "files": []}
     
-@app.get("/api-health")
-def api_health():
-    return {"status": "ok", "organizations_loaded": len(ORGANIZATIONS)}
+    files = list(signal_dir.iterdir())
+    return {
+        "signal_id": signal_id,
+        "files": [{"name": f.name, "size": f.stat().st_size, "path": str(f.absolute())} for f in files]
+    }
+
+@app.get("/signals")
+def list_signals():
+    """List all signals with media"""
+    signals = []
+    for signal_dir in UPLOADS_DIR.iterdir():
+        if signal_dir.is_dir():
+            files = list(signal_dir.iterdir())
+            signals.append({
+                "signal_id": signal_dir.name,
+                "file_count": len(files),
+                "files": [f.name for f in files]
+            })
+    return {"signals": signals, "count": len(signals)}
 
 if __name__ == "__main__":
     import uvicorn
     print(f"✓ Base system prompt length: {len(BASE_SYSTEM_PROMPT)} characters")
     print(f"✓ Starting server with {len(ORGANIZATIONS)} organizations")
-    
-    # Quick test
-    print("\n" + "="*80)
-    print("TESTING FILTERING LOGIC:")
-    print("="*80)
-    
-    test1 = filter_organizations_by_location(oblast="Пловдив")
-    plovdiv1 = [o for o in test1 if 'пловдив' in o['name'].lower()]
-    print(f"✓ Oblast only: {len(test1)} orgs (Plovdiv-specific: {len(plovdiv1)})")
-    
-    test2 = filter_organizations_by_location(oblast="Пловдив", obshtina="Пловдив", grad="Пловдив")
-    plovdiv2 = [o for o in test2 if 'пловдив' in o['name'].lower()]
-    print(f"✓ With grad: {len(test2)} orgs (Plovdiv-specific: {len(plovdiv2)})")
-    
-    test3 = filter_organizations_by_location(oblast="Пловдив", obshtina="Пловдив", grad="Пловдив", rayon="Район Западен")
-    plovdiv3 = [o for o in test3 if 'пловдив' in o['name'].lower()]
-    print(f"✓ With rayon: {len(test3)} orgs (Plovdiv-specific: {len(plovdiv3)})")
-    print("="*80 + "\n")
+    print(f"✓ Supporting {len(LOCATION_DB)} cities and {len(RAYON_DB)} rayons")
+    print(f"✓ Media uploads will be saved to: {UPLOADS_DIR.absolute()}")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
