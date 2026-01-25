@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Граждански Сигнали</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -23,7 +19,7 @@
         .container {
             width: 600px;
             height: 80vh;
-            max-width: 95%;            
+            max-width: 95%;
             background: white;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -56,17 +52,8 @@
             white-space: pre-wrap;
         }
 
-        .message.user {
-            background: #667eea;
-            color: white;
-            align-self: flex-end;
-        }
-
-        .message.assistant {
-            background: #f0f0f0;
-            color: #333;
-            align-self: flex-start;
-        }
+        .message.user { background: #667eea; color: white; align-self: flex-end; }
+        .message.assistant { background: #f0f0f0; color: #333; align-self: flex-start; }
 
         .message.system {
             background: #d4edda;
@@ -86,7 +73,6 @@
             max-width: 90%;
         }
 
-        /* Media preview in messages */
         .message-media {
             margin-top: 8px;
             display: flex;
@@ -110,11 +96,6 @@
             gap: 10px;
         }
 
-        .input-area.disabled {
-            background: #f5f5f5;
-        }
-
-        /* Media preview area above input */
         .media-preview-area {
             display: none;
             flex-wrap: wrap;
@@ -126,9 +107,7 @@
             overflow-y: auto;
         }
 
-        .media-preview-area.has-files {
-            display: flex;
-        }
+        .media-preview-area.has-files { display: flex; }
 
         .media-preview-item {
             position: relative;
@@ -140,11 +119,7 @@
         }
 
         .media-preview-item img,
-        .media-preview-item video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .media-preview-item video { width: 100%; height: 100%; object-fit: cover; }
 
         .media-preview-item .remove-media {
             position: absolute;
@@ -164,9 +139,7 @@
             line-height: 1;
         }
 
-        .media-preview-item .remove-media:hover {
-            background: rgba(220,53,69,0.9);
-        }
+        .media-preview-item .remove-media:hover { background: rgba(220,53,69,0.9); }
 
         .media-preview-item .file-type-badge {
             position: absolute;
@@ -180,7 +153,6 @@
             text-transform: uppercase;
         }
 
-        /* Accumulated media indicator */
         .accumulated-media-bar {
             display: none;
             padding: 8px 12px;
@@ -192,9 +164,7 @@
             gap: 8px;
         }
 
-        .accumulated-media-bar.has-files {
-            display: flex;
-        }
+        .accumulated-media-bar.has-files { display: flex; }
 
         .accumulated-media-bar .media-thumbs {
             display: flex;
@@ -221,12 +191,7 @@
             font-size: 11px;
         }
 
-        /* Input row with text, upload button, send button */
-        .input-row {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
+        .input-row { display: flex; gap: 10px; align-items: center; }
 
         input[type="text"] {
             flex: 1;
@@ -236,22 +201,11 @@
             font-size: 16px;
         }
 
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
+        input[type="text"]:focus { outline: none; border-color: #667eea; }
+        input[type="text"]:disabled { background: #f0f0f0; cursor: not-allowed; }
 
-        input[type="text"]:disabled {
-            background: #f0f0f0;
-            cursor: not-allowed;
-        }
+        #mediaInput { display: none; }
 
-        /* Hidden file input */
-        #mediaInput {
-            display: none;
-        }
-
-        /* Upload button */
         .upload-btn {
             padding: 12px;
             background: #f0f0f0;
@@ -314,25 +268,11 @@
             font-weight: 600;
         }
 
-        button:hover {
-            background: #5568d3;
-        }
+        button:hover { background: #5568d3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
 
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 10px;
-            color: #666;
-        }
-
-        .loading.active {
-            display: block;
-        }
+        .loading { display: none; text-align: center; padding: 10px; color: #666; }
+        .loading.active { display: block; }
 
         pre {
             background: #f8f9fa;
@@ -343,7 +283,6 @@
             margin-top: 10px;
         }
 
-        /* New conversation button */
         .new-conversation-btn {
             padding: 12px 24px;
             background: #28a745;
@@ -356,9 +295,7 @@
             width: 100%;
         }
 
-        .new-conversation-btn:hover {
-            background: #218838;
-        }
+        .new-conversation-btn:hover { background: #218838; }
 
         .ended-message {
             text-align: center;
@@ -367,7 +304,6 @@
             margin-bottom: 10px;
         }
 
-        /* Attached media indicator in signal */
         .attached-media-count {
             background: #28a745;
             color: white;
@@ -395,33 +331,29 @@
         </div>
 
         <div class="input-area" id="inputArea">
-            <!-- Shows accumulated media for the whole conversation -->
             <div class="accumulated-media-bar" id="accumulatedMedia">
                 <span>📎 Прикачени файлове:</span>
                 <div class="media-thumbs" id="accumulatedThumbs"></div>
                 <button type="button" class="clear-all" onclick="clearAllMedia()">Изчисти</button>
             </div>
-            
-            <!-- Shows media being added with current message -->
+
             <div class="media-preview-area" id="mediaPreview"></div>
-            
+
             <div class="input-row">
-                <input 
-                    type="text" 
-                    id="userInput" 
+                <input
+                    type="text"
+                    id="userInput"
                     placeholder="Напишете вашия сигнал..."
                     autocomplete="off"
                 />
-                <input 
-                    type="file" 
-                    id="mediaInput" 
+                <input
+                    type="file"
+                    id="mediaInput"
                     accept="image/*,video/*"
                     multiple
                 />
                 <div class="file-count">
-                    <button type="button" class="upload-btn" id="uploadBtn" title="Прикачи снимка или видео">
-                        📎
-                    </button>
+                    <button type="button" class="upload-btn" id="uploadBtn" title="Прикачи снимка или видео">📎</button>
                 </div>
                 <button type="button" id="sendBtn">Изпрати</button>
             </div>
@@ -429,65 +361,68 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:8000/chat';
-        
+        // ✅ Works locally + Vercel (because vercel.json routes /api/* to FastAPI)
+        const CHAT_URL = '/api/chat';
+        const UPLOAD_URL = '/api/upload-media';
+        const HEALTH_URL = '/api/health';
+
         let conversationHistory = [];
         let locationContext = null;
         let conversationEnded = false;
-        
-        // NEW: Two separate arrays
-        let pendingMedia = [];      // Media being added with current message (shown in preview)
-        let accumulatedMedia = [];  // All media for the conversation (persists until signal sent)
-        
+
+        // UI media
+        let pendingMedia = [];       // preview for current message
+        let accumulatedMedia = [];   // thumbnails for whole conversation
+
+        // ✅ This is the important part: only IDs are sent to /chat
+        let accumulatedMediaIds = [];
+
         const messagesDiv = document.getElementById('messages');
         const loading = document.getElementById('loading');
         const inputArea = document.getElementById('inputArea');
 
-        // Handle upload button click
         function setupUploadHandlers() {
             const mediaInput = document.getElementById('mediaInput');
             const uploadBtn = document.getElementById('uploadBtn');
-            
+
             uploadBtn.addEventListener('click', () => mediaInput.click());
-            
+
             mediaInput.addEventListener('change', (e) => {
                 const files = Array.from(e.target.files);
-                
+
                 files.forEach(file => {
                     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
                         alert('Моля, изберете само снимки или видеа.');
                         return;
                     }
-                    
+
                     if (file.size > 20 * 1024 * 1024) {
                         alert(`Файлът "${file.name}" е твърде голям. Максимален размер: 20MB`);
                         return;
                     }
-                    
+
                     const mediaItem = {
                         file: file,
                         id: Date.now() + Math.random(),
                         type: file.type.startsWith('image/') ? 'image' : 'video',
                         preview: URL.createObjectURL(file)
                     };
-                    
+
                     pendingMedia.push(mediaItem);
                 });
-                
+
                 updateMediaPreview();
                 mediaInput.value = '';
             });
         }
 
-        // Update pending media preview (current message)
         function updateMediaPreview() {
             const mediaPreview = document.getElementById('mediaPreview');
             const uploadBtn = document.getElementById('uploadBtn');
-            
             if (!mediaPreview) return;
-            
+
             mediaPreview.innerHTML = '';
-            
+
             if (pendingMedia.length === 0) {
                 mediaPreview.classList.remove('has-files');
                 if (uploadBtn) {
@@ -496,14 +431,14 @@
                 }
                 return;
             }
-            
+
             mediaPreview.classList.add('has-files');
             if (uploadBtn) uploadBtn.classList.add('has-files');
-            
+
             pendingMedia.forEach((media, index) => {
                 const item = document.createElement('div');
                 item.className = 'media-preview-item';
-                
+
                 if (media.type === 'image') {
                     item.innerHTML = `
                         <img src="${media.preview}" alt="Preview">
@@ -517,11 +452,10 @@
                         <button class="remove-media" data-index="${index}">×</button>
                     `;
                 }
-                
+
                 mediaPreview.appendChild(item);
             });
-            
-            // Add remove handlers
+
             mediaPreview.querySelectorAll('.remove-media').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const index = parseInt(e.target.dataset.index);
@@ -530,21 +464,19 @@
                     updateMediaPreview();
                 });
             });
-            
+
             updateUploadBadge();
         }
 
-        // Update the badge showing total media count
         function updateUploadBadge() {
             const uploadBtn = document.getElementById('uploadBtn');
             if (!uploadBtn) return;
-            
+
             const totalCount = accumulatedMedia.length + pendingMedia.length;
-            
-            // Remove existing badge
+
             const existingBadge = uploadBtn.querySelector('.badge');
             if (existingBadge) existingBadge.remove();
-            
+
             if (totalCount > 0) {
                 const badge = document.createElement('span');
                 badge.className = 'badge';
@@ -556,21 +488,20 @@
             }
         }
 
-        // Update accumulated media bar
         function updateAccumulatedMediaBar() {
             const bar = document.getElementById('accumulatedMedia');
             const thumbs = document.getElementById('accumulatedThumbs');
-            
+
             if (!bar || !thumbs) return;
-            
+
             if (accumulatedMedia.length === 0) {
                 bar.classList.remove('has-files');
                 return;
             }
-            
+
             bar.classList.add('has-files');
             thumbs.innerHTML = '';
-            
+
             accumulatedMedia.forEach(media => {
                 if (media.type === 'image') {
                     const img = document.createElement('img');
@@ -583,28 +514,31 @@
                     thumbs.appendChild(video);
                 }
             });
-            
+
             updateUploadBadge();
         }
 
-        // Clear all accumulated media
         function clearAllMedia() {
             accumulatedMedia.forEach(m => URL.revokeObjectURL(m.preview));
+            pendingMedia.forEach(m => URL.revokeObjectURL(m.preview));
             accumulatedMedia = [];
+            pendingMedia = [];
+            accumulatedMediaIds = [];
+            updateMediaPreview();
             updateAccumulatedMediaBar();
             updateUploadBadge();
         }
 
-        // End conversation
         function endConversation() {
             conversationEnded = true;
-            
-            // Clean up media
+
+            // Keep preview URLs cleared
             pendingMedia.forEach(m => URL.revokeObjectURL(m.preview));
             accumulatedMedia.forEach(m => URL.revokeObjectURL(m.preview));
             pendingMedia = [];
             accumulatedMedia = [];
-            
+            accumulatedMediaIds = [];
+
             inputArea.innerHTML = `
                 <div style="width: 100%; text-align: center;">
                     <p class="ended-message">Сигналът беше изпратен успешно!</p>
@@ -615,16 +549,17 @@
             `;
         }
 
-        // Start new conversation
         function startNewConversation() {
             conversationHistory = [];
             locationContext = null;
             conversationEnded = false;
+
             pendingMedia = [];
             accumulatedMedia = [];
-            
+            accumulatedMediaIds = [];
+
             messagesDiv.innerHTML = '';
-            
+
             inputArea.innerHTML = `
                 <div class="accumulated-media-bar" id="accumulatedMedia">
                     <span>📎 Прикачени файлове:</span>
@@ -633,42 +568,26 @@
                 </div>
                 <div class="media-preview-area" id="mediaPreview"></div>
                 <div class="input-row">
-                    <input 
-                        type="text" 
-                        id="userInput" 
-                        placeholder="Напишете вашия сигнал..."
-                        autocomplete="off"
-                    />
-                    <input 
-                        type="file" 
-                        id="mediaInput" 
-                        accept="image/*,video/*"
-                        multiple
-                    />
+                    <input type="text" id="userInput" placeholder="Напишете вашия сигнал..." autocomplete="off" />
+                    <input type="file" id="mediaInput" accept="image/*,video/*" multiple />
                     <div class="file-count">
-                        <button type="button" class="upload-btn" id="uploadBtn" title="Прикачи снимка или видео">
-                            📎
-                        </button>
+                        <button type="button" class="upload-btn" id="uploadBtn" title="Прикачи снимка или видео">📎</button>
                     </div>
                     <button type="button" id="sendBtn">Изпрати</button>
                 </div>
             `;
-            
+
             setupEventListeners();
-            
+
             setTimeout(() => {
-                addMessage(
-                    'Здравейте! Опишете вашия проблем или сигнал, и аз ще ви помогна да го изпратите до правилната институция.',
-                    'assistant'
-                );
+                addMessage('Здравейте! Опишете вашия проблем или сигнал, и аз ще ви помогна да го изпратите до правилната институция.', 'assistant');
             }, 300);
         }
 
-        // Add message to UI
         function addMessage(content, role, metadata = {}) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
-            
+
             if (role === 'signal') {
                 messageDiv.innerHTML = formatSignalData(content, metadata.mediaCount);
             } else if (typeof content === 'object') {
@@ -677,11 +596,10 @@
                 messageDiv.textContent = content;
             }
 
-            // Add media previews to user messages
             if (metadata.media && metadata.media.length > 0) {
                 const mediaContainer = document.createElement('div');
                 mediaContainer.className = 'message-media';
-                
+
                 metadata.media.forEach(media => {
                     if (media.type === 'image') {
                         const img = document.createElement('img');
@@ -694,26 +612,22 @@
                         mediaContainer.appendChild(video);
                     }
                 });
-                
+
                 messageDiv.appendChild(mediaContainer);
             }
-            
+
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        // Format signal data
         function formatSignalData(signal, mediaCount) {
             let html = `<pre>${JSON.stringify(signal, null, 2)}</pre>`;
-            
             if (mediaCount && mediaCount > 0) {
                 html += `<div class="attached-media-count">📎 ${mediaCount} прикачен${mediaCount > 1 ? 'и файла' : ' файл'} към сигнала</div>`;
             }
-            
             return html;
         }
 
-        // Convert file to base64
         async function fileToBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -723,160 +637,165 @@
             });
         }
 
-        // Send message
+        // ✅ Upload ONLY the newly attached media once; store returned media_ids
+        async function uploadMediaOnce(mediaItems) {
+            if (!mediaItems || mediaItems.length === 0) return [];
+
+            const mediaData = [];
+            for (const media of mediaItems) {
+                const base64 = await fileToBase64(media.file);
+                mediaData.push({
+                    type: media.type,
+                    filename: media.file.name,
+                    mime_type: media.file.type,
+                    data: base64,
+                    size: media.file.size
+                });
+            }
+
+            const res = await fetch(UPLOAD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media: mediaData })
+            });
+
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                throw new Error(`Upload failed: ${res.status} ${text}`);
+            }
+
+            const data = await res.json();
+            const ids = (data.items || []).map(x => x.media_id);
+            return ids;
+        }
+
         async function sendMessage() {
             if (conversationEnded) return;
 
             const userInput = document.getElementById('userInput');
             const sendBtn = document.getElementById('sendBtn');
             const uploadBtn = document.getElementById('uploadBtn');
-            
+
             const message = userInput.value.trim();
             if (!message && pendingMedia.length === 0) return;
-
-            // Move pending media to accumulated
-            const mediaForThisMessage = [...pendingMedia];
-            if (mediaForThisMessage.length > 0) {
-                accumulatedMedia.push(...mediaForThisMessage);
-                pendingMedia = [];
-                updateMediaPreview();
-                updateAccumulatedMediaBar();
-            }
-            
-            // Build display message
-            let displayMessage = message;
-            if (mediaForThisMessage.length > 0 && !message) {
-                displayMessage = `(${mediaForThisMessage.length} прикачен${mediaForThisMessage.length > 1 ? 'и файла' : ' файл'})`;
-            }
-            
-            addMessage(displayMessage, 'user', { media: mediaForThisMessage });
-            userInput.value = '';
-
-            // Add to conversation - mention if media was attached
-            let contentForHistory = message;
-            if (mediaForThisMessage.length > 0) {
-                const mediaNote = `[Потребителят прикачи ${mediaForThisMessage.length} ${mediaForThisMessage[0].type === 'image' ? 'снимк' : 'виде'}${mediaForThisMessage.length > 1 ? 'и' : 'о'}]`;
-                contentForHistory = message ? `${message}\n${mediaNote}` : mediaNote;
-            }
-            
-            conversationHistory.push({
-                role: 'user',
-                content: contentForHistory
-            });
 
             loading.classList.add('active');
             sendBtn.disabled = true;
             if (uploadBtn) uploadBtn.disabled = true;
+            userInput.disabled = true;
 
             try {
-                // Prepare ALL accumulated media for the request
-                const mediaData = [];
-                for (const media of accumulatedMedia) {
-                    const base64 = await fileToBase64(media.file);
-                    mediaData.push({
-                        type: media.type,
-                        filename: media.file.name,
-                        mime_type: media.file.type,
-                        data: base64,
-                        size: media.file.size
-                    });
+                // 1) Upload any pending media ONCE
+                const mediaForThisMessage = [...pendingMedia];
+                let newIds = [];
+                if (mediaForThisMessage.length > 0) {
+                    newIds = await uploadMediaOnce(mediaForThisMessage);
+                    accumulatedMediaIds.push(...newIds);
+
+                    // Move pending to accumulated for UI
+                    accumulatedMedia.push(...mediaForThisMessage);
+                    pendingMedia = [];
+                    updateMediaPreview();
+                    updateAccumulatedMediaBar();
                 }
 
+                // 2) Display user message
+                let displayMessage = message;
+                if (mediaForThisMessage.length > 0 && !message) {
+                    displayMessage = `(${mediaForThisMessage.length} прикачен${mediaForThisMessage.length > 1 ? 'и файла' : ' файл'})`;
+                }
+                addMessage(displayMessage, 'user', { media: mediaForThisMessage });
+                userInput.value = '';
+
+                // 3) Conversation history text note (no base64!)
+                let contentForHistory = message;
+                if (mediaForThisMessage.length > 0) {
+                    const note = `[Потребителят прикачи ${mediaForThisMessage.length} файл(а)]`;
+                    contentForHistory = message ? `${message}\n${note}` : note;
+                }
+
+                conversationHistory.push({ role: 'user', content: contentForHistory });
+
+                // 4) Send chat payload with ONLY media_ids
                 const payload = {
                     messages: conversationHistory,
-                    media: mediaData.length > 0 ? mediaData : undefined
+                    media_ids: accumulatedMediaIds.length > 0 ? accumulatedMediaIds : undefined
                 };
+                if (locationContext) payload.location_context = locationContext;
 
-                if (locationContext) {
-                    payload.location_context = locationContext;
-                }
-
-                console.log(`Sending request with ${mediaData.length} media files`);
-
-                const response = await fetch(API_URL, {
+                const response = await fetch(CHAT_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+
+                if (!response.ok) {
+                    const text = await response.text().catch(() => '');
+                    throw new Error(`Chat failed: ${response.status} ${text}`);
+                }
 
                 const data = await response.json();
 
                 loading.classList.remove('active');
                 sendBtn.disabled = false;
                 if (uploadBtn) uploadBtn.disabled = false;
-
-                if (data.conversation_ended && data.signal_sent && !data.signal_ready) {
-                    addMessage(data.message, 'system');
-                    endConversation();
-                    return;
-                }
+                userInput.disabled = false;
 
                 if (data.signal_ready) {
                     addMessage('Сигналът е готов за изпращане!', 'system');
-                    
+
                     addMessage(data.signal_data, 'signal', {
                         mediaCount: data.attached_media_count || 0
                     });
-                    
+
                     let agencyMsg = `Сигналът ще бъде изпратен до "${data.signal_data.agency}"`;
-                    if (data.attached_media_count > 0) {
+                    if ((data.attached_media_count || 0) > 0) {
                         agencyMsg += ` с ${data.attached_media_count} прикачен${data.attached_media_count > 1 ? 'и файла' : ' файл'}`;
                     }
                     addMessage(agencyMsg, 'system');
 
-                    // Small delay to ensure DOM updates before ending conversation
-                    setTimeout(() => {
-                        endConversation();
-                    }, 100);
-                    
-                    return; // Stop further processing
+                    setTimeout(() => endConversation(), 100);
+                    return;
+                }
 
-                } else {
-                    addMessage(data.message, 'assistant');
-                    
-                    conversationHistory.push({
-                        role: 'assistant',
-                        content: data.message
-                    });
+                addMessage(data.message, 'assistant');
+                conversationHistory.push({ role: 'assistant', content: data.message });
 
-                    if (data.needs_location) {
-                        addMessage(
-                            'ℹ️ Моля, споделете местоположението на проблема за по-точно насочване',
-                            'info'
-                        );
-                    }
+                if (data.needs_location) {
+                    addMessage('ℹ️ Моля, споделете местоположението на проблема за по-точно насочване', 'info');
                 }
 
             } catch (error) {
-                console.error('Error:', error);
+                console.error(error);
                 loading.classList.remove('active');
-                const sendBtn = document.getElementById('sendBtn');
-                const uploadBtn = document.getElementById('uploadBtn');
-                if (sendBtn) sendBtn.disabled = false;
-                if (uploadBtn) uploadBtn.disabled = false;
-                addMessage('Грешка при свързване със сървъра. Моля, уверете се че backend-ът работи на http://localhost:8000', 'system');
+
+                const sendBtn2 = document.getElementById('sendBtn');
+                const uploadBtn2 = document.getElementById('uploadBtn');
+                const userInput2 = document.getElementById('userInput');
+
+                if (sendBtn2) sendBtn2.disabled = false;
+                if (uploadBtn2) uploadBtn2.disabled = false;
+                if (userInput2) userInput2.disabled = false;
+
+                addMessage('Грешка при свързване със сървъра. Проверете backend-а (Vercel / локален).', 'system');
             }
         }
 
-        // Setup all event listeners
         function setupEventListeners() {
             const userInput = document.getElementById('userInput');
             const sendBtn = document.getElementById('sendBtn');
-            
+
             sendBtn.addEventListener('click', sendMessage);
-            userInput.addEventListener('keypress', (e) => {
+            userInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') sendMessage();
             });
-            
+
             setupUploadHandlers();
         }
 
-        // Check backend
         async function checkBackend() {
             try {
-                const response = await fetch('http://localhost:8000/');
+                const response = await fetch(HEALTH_URL);
                 const data = await response.json();
                 console.log('✅ Backend is running:', data);
             } catch (error) {
@@ -885,16 +804,12 @@
             }
         }
 
-        // Initial setup
         window.addEventListener('load', () => {
             checkBackend();
             setupEventListeners();
-            
+
             setTimeout(() => {
-                addMessage(
-                    'Здравейте! Опишете вашия проблем или сигнал, и аз ще ви помогна да го изпратите до правилната институция.',
-                    'assistant'
-                );
+                addMessage('Здравейте! Опишете вашия проблем или сигнал, и аз ще ви помогна да го изпратите до правилната институция.', 'assistant');
             }, 500);
         });
     </script>
