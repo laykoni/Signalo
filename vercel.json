@@ -1,26 +1,11 @@
 {
   "builds": [
-    {
-      "src": "main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "organizations.csv",
-      "use": "@vercel/static"
-    }
+    { "src": "main.py", "use": "@vercel/python" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "organizations.csv", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/(chat|organizations|filter-organizations)",
-      "dest": "main.py"
-    },
-    {
-      "src": "/",
-      "dest": "index.html"
-    }
+    { "src": "/api/(.*)", "dest": "main.py" },
+    { "src": "/", "dest": "index.html" }
   ]
 }
