@@ -416,3 +416,12 @@ def health():
         "rayons_supported": len(RAYON_DB),
         "uploads_dir": str(UPLOADS_DIR.absolute())
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    print(f"✓ Base system prompt length: {len(BASE_SYSTEM_PROMPT)} characters")
+    print(f"✓ Starting server with {len(ORGANIZATIONS)} organizations")
+    print(f"✓ Supporting {len(LOCATION_DB)} cities and {len(RAYON_DB)} rayons")
+    print(f"✓ Media uploads will be saved to: {UPLOADS_DIR.absolute()}")
+    
+    uvicorn.run(app, host="0.0.0.0", port=8000)
